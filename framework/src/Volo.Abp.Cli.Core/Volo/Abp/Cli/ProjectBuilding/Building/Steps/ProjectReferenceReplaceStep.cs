@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Xml;
 using Volo.Abp.Cli.ProjectBuilding.Files;
+using Volo.Abp.Cli.Utils;
 
 namespace Volo.Abp.Cli.ProjectBuilding.Building.Steps
 {
@@ -22,13 +24,13 @@ namespace Volo.Abp.Cli.ProjectBuilding.Building.Steps
 
                 new ProjectReferenceReplacer.LocalProjectPathReferenceReplacer(
                     context.Files,
-                    "MyCompanyName.MyProjectName",
+                    context.Module?.Namespace ?? "MyCompanyName.MyProjectName",
                     localAbpRepoPath
                 ).Run();
             }
             else
             {
-                var nugetPackageVersion = context.TemplateFile.Version;
+                var nugetPackageVersion = context.TemplateFile.RepositoryNugetVersion;
 
                 if (IsBranchName(nugetPackageVersion))
                 {
@@ -37,7 +39,7 @@ namespace Volo.Abp.Cli.ProjectBuilding.Building.Steps
 
                 new ProjectReferenceReplacer.NugetReferenceReplacer(
                     context.Files,
-                    "MyCompanyName.MyProjectName",
+                    context.Module?.Namespace ?? "MyCompanyName.MyProjectName",
                     nugetPackageVersion
                 ).Run();
             }
@@ -65,14 +67,14 @@ namespace Volo.Abp.Cli.ProjectBuilding.Building.Steps
         private abstract class ProjectReferenceReplacer
         {
             private readonly List<FileEntry> _entries;
-            private readonly string _companyAndProjectNamePlaceHolder;
+            private readonly string _projectName;
 
             protected ProjectReferenceReplacer(
                 List<FileEntry> entries,
-                string companyAndProjectNamePlaceHolder)
+                string projectName)
             {
                 _entries = entries;
-                _companyAndProjectNamePlaceHolder = companyAndProjectNamePlaceHolder;
+                _projectName = projectName;
             }
 
             public void Run()
@@ -92,7 +94,7 @@ namespace Volo.Abp.Cli.ProjectBuilding.Building.Steps
 
                 var doc = new XmlDocument() { PreserveWhitespace = true };
 
-                doc.Load(GenerateStreamFromString(content));
+                doc.Load(StreamHelper.GenerateStreamFromString(content));
 
                 return ProcessReferenceNodes(doc, content);
             }
@@ -108,7 +110,7 @@ namespace Volo.Abp.Cli.ProjectBuilding.Building.Steps
                     var oldNodeIncludeValue = oldNode.Attributes["Include"].Value;
 
                     // ReSharper disable once PossibleNullReferenceException : Can not be null because nodes are selected with include attribute filter in previous method
-                    if (oldNodeIncludeValue.Contains($"{_companyAndProjectNamePlaceHolder}"))
+                    if (oldNodeIncludeValue.Contains(_projectName) && _entries.Any(e=>e.Name.EndsWith(GetProjectNameWithExtensionFromProjectReference(oldNodeIncludeValue))))
                     {
                         continue;
                     }
@@ -123,25 +125,25 @@ namespace Volo.Abp.Cli.ProjectBuilding.Building.Steps
                 return doc.OuterXml;
             }
 
-            protected abstract XmlElement GetNewReferenceNode(XmlDocument doc, string oldNodeIncludeValue);
-
-            private static Stream GenerateStreamFromString(string s)
+            private string GetProjectNameWithExtensionFromProjectReference(string oldNodeIncludeValue)
             {
-                var stream = new MemoryStream();
-                var writer = new StreamWriter(stream);
-                writer.Write(s);
-                writer.Flush();
-                stream.Position = 0;
-                return stream;
+                if (string.IsNullOrWhiteSpace(oldNodeIncludeValue))
+                {
+                    return oldNodeIncludeValue;
+                }
+
+                return oldNodeIncludeValue.Split('\\', '/').Last();
             }
+
+            protected abstract XmlElement GetNewReferenceNode(XmlDocument doc, string oldNodeIncludeValue);
 
 
             public class NugetReferenceReplacer : ProjectReferenceReplacer
             {
                 private readonly string _nugetPackageVersion;
 
-                public NugetReferenceReplacer(List<FileEntry> entries, string companyAndProjectNamePlaceHolder, string nugetPackageVersion)
-                    : base(entries, companyAndProjectNamePlaceHolder)
+                public NugetReferenceReplacer(List<FileEntry> entries, string projectName, string nugetPackageVersion)
+                    : base(entries, projectName)
                 {
                     _nugetPackageVersion = nugetPackageVersion;
                 }
@@ -177,8 +179,8 @@ namespace Volo.Abp.Cli.ProjectBuilding.Building.Steps
             {
                 private readonly string _gitHubLocalRepositoryPath;
 
-                public LocalProjectPathReferenceReplacer(List<FileEntry> entries, string companyAndProjectNamePlaceHolder, string gitHubLocalRepositoryPath)
-                    : base(entries, companyAndProjectNamePlaceHolder)
+                public LocalProjectPathReferenceReplacer(List<FileEntry> entries, string projectName, string gitHubLocalRepositoryPath)
+                    : base(entries, projectName)
                 {
                     _gitHubLocalRepositoryPath = gitHubLocalRepositoryPath;
                 }

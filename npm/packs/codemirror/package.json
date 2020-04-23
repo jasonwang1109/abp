@@ -1,12 +1,12 @@
 {
-  "version": "0.9.0",
+  "version": "2.6.0",
   "name": "@abp/codemirror",
   "publishConfig": {
     "access": "public"
   },
   "dependencies": {
-    "@abp/core": "^0.9.0",
-    "codemirror": "^5.38.0"
+    "@abp/core": "^2.6.0",
+    "codemirror": "^5.49.2"
   },
-  "gitHead": "4d6791834b7723d8ad78ba4d23ae3425f170fdeb"
+  "gitHead": "03238c9aa7d4090b7c6ae9cc8c790bc0545501eb"
 }

@@ -46,9 +46,10 @@ public class MyModule : AbpModule
 {
     public override void ConfigureServices(ServiceConfigurationContext context)
     {
-        Configure<VirtualFileSystemOptions>(options =>
+        Configure<AbpVirtualFileSystemOptions>(options =>
         {
-            options.FileSets.AddEmbedded<MyModule>();
+            // "YourRootNameSpace" 是项目的根命名空间名字. 如果你的项目的根命名空间名字为空,则无需传递此参数.
+            options.FileSets.AddEmbedded<MyModule>("YourRootNameSpace");
         });
 
         Configure<AbpLocalizationOptions>(options =>
@@ -189,3 +190,7 @@ var testResource = abp.localization.getResource('Test');
 ````js
 var str = testResource('HelloWorld');
 ````
+
+## See Also
+
+* [Angular UI中的本地化](UI/Angular/Localization.md)

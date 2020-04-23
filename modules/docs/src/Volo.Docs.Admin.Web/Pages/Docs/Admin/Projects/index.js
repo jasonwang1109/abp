@@ -12,10 +12,16 @@
         modalClass: 'projectEdit'
     });
 
+    var _pullModal = new abp.ModalManager({
+        viewUrl: abp.appPath + 'Docs/Admin/Projects/Pull',
+        modalClass: 'projectPull'
+    });
+
 
     var _dataTable = $('#ProjectsTable').DataTable(abp.libs.datatables.normalizeConfiguration({
         processing: true,
         serverSide: true,
+        scrollX: true,
         paging: true,
         searching: false,
         autoWidth: false,
@@ -43,6 +49,27 @@
                                 action: function (data) {
                                     volo.docs.admin.projectsAdmin
                                         .delete(data.record.id)
+                                        .then(function () {
+                                            _dataTable.ajax.reload();
+                                        });
+                                }
+                            },
+                            {
+                                text: l('Pull'),
+                                visible: abp.auth.isGranted('Docs.Admin.Documents'),
+                                action: function (data) {
+                                    _pullModal.open({
+                                        Id: data.record.id
+                                    });
+                                }
+                            },
+                            {
+                                text: l('ClearCache'),
+                                visible: abp.auth.isGranted('Docs.Admin.Documents'),
+                                confirmMessage: function (data) { return l('ClearCacheConfirmationMessage', data.record.name); },
+                                action: function (data) {
+                                    volo.docs.admin.documentsAdmin
+                                        .clearCache({ projectId: data.record.id})
                                         .then(function () {
                                             _dataTable.ajax.reload();
                                         });

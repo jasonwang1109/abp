@@ -47,13 +47,19 @@ namespace Volo.Docs.Admin.Projects
         [Authorize(DocsAdminPermissions.Projects.Create)]
         public async Task<ProjectDto> CreateAsync(CreateProjectDto input)
         {
+            if (await _projectRepository.ShortNameExistsAsync(input.ShortName))
+            {
+                throw new ProjectShortNameAlreadyExistsException(input.ShortName);
+            }
+            
             var project = new Project(_guidGenerator.Create(),
                 input.Name,
                 input.ShortName,
                 input.DocumentStoreType,
                 input.Format,
                 input.DefaultDocumentName,
-                input.NavigationDocumentName
+                input.NavigationDocumentName,
+                input.ParametersDocumentName
             )
             {
                 MinimumVersion = input.MinimumVersion,
@@ -63,9 +69,9 @@ namespace Volo.Docs.Admin.Projects
 
             foreach (var extraProperty in input.ExtraProperties)
             {
-                project.ExtraProperties.Add(extraProperty.Key,extraProperty.Value);
+                project.ExtraProperties.Add(extraProperty.Key, extraProperty.Value);
             }
-
+            
             project = await _projectRepository.InsertAsync(project);
 
             return ObjectMapper.Map<Project, ProjectDto>(project);
@@ -100,5 +106,6 @@ namespace Volo.Docs.Admin.Projects
         {
             await _projectRepository.DeleteAsync(id);
         }
+        
     }
 }

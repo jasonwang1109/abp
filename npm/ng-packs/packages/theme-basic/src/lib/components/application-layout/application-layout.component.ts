@@ -1,27 +1,26 @@
 import {
   ABP,
   ApplicationConfiguration,
-  GetAppConfiguration,
+  AuthService,
+  Config,
   ConfigState,
   eLayoutType,
-  SetLanguage,
   SessionState,
-  takeUntilDestroy
+  SetLanguage,
+  takeUntilDestroy,
 } from '@abp/ng.core';
+import { collapseWithMargin, slideFromBottom } from '@abp/ng.theme.shared';
 import {
   AfterViewInit,
   Component,
   OnDestroy,
-  QueryList,
+  Renderer2,
   TemplateRef,
   TrackByFunction,
   ViewChild,
-  ViewChildren
 } from '@angular/core';
-import { NgbDropdown } from '@ng-bootstrap/ng-bootstrap';
 import { Navigate, RouterState } from '@ngxs/router-plugin';
 import { Select, Store } from '@ngxs/store';
-import { OAuthService } from 'angular-oauth2-oidc';
 import compare from 'just-compare';
 import { fromEvent, Observable } from 'rxjs';
 import { debounceTime, filter, map } from 'rxjs/operators';
@@ -32,7 +31,8 @@ import { LayoutState } from '../../states';
 
 @Component({
   selector: 'abp-layout-application',
-  templateUrl: './application-layout.component.html'
+  templateUrl: './application-layout.component.html',
+  animations: [slideFromBottom, collapseWithMargin],
 })
 export class ApplicationLayoutComponent implements AfterViewInit, OnDestroy {
   // required for dynamic component
@@ -56,14 +56,15 @@ export class ApplicationLayoutComponent implements AfterViewInit, OnDestroy {
   @ViewChild('language', { static: false, read: TemplateRef })
   languageRef: TemplateRef<any>;
 
-  @ViewChildren('navbarRootDropdown', { read: NgbDropdown })
-  navbarRootDropdowns: QueryList<NgbDropdown>;
-
-  isOpenChangePassword = false;
-
-  isOpenProfile = false;
-
   isDropdownChildDynamic: boolean;
+
+  isCollapsed = true;
+
+  smallScreen: boolean; // do not set true or false
+
+  get appInfo(): Config.Application {
+    return this.store.selectSnapshot(ConfigState.getApplicationInfo);
+  }
 
   get visibleRoutes$(): Observable<ABP.FullRoute[]> {
     return this.routes$.pipe(map(routes => getVisibleRoutes(routes)));
@@ -71,13 +72,23 @@ export class ApplicationLayoutComponent implements AfterViewInit, OnDestroy {
 
   get defaultLanguage$(): Observable<string> {
     return this.languages$.pipe(
-      map(languages => snq(() => languages.find(lang => lang.cultureName === this.selectedLangCulture).displayName), '')
+      map(
+        languages =>
+          snq(
+            () => languages.find(lang => lang.cultureName === this.selectedLangCulture).displayName,
+          ),
+        '',
+      ),
     );
   }
 
   get dropdownLanguages$(): Observable<ApplicationConfiguration.Language[]> {
     return this.languages$.pipe(
-      map(languages => snq(() => languages.filter(lang => lang.cultureName !== this.selectedLangCulture)), [])
+      map(
+        languages =>
+          snq(() => languages.filter(lang => lang.cultureName !== this.selectedLangCulture)),
+        [],
+      ),
     );
   }
 
@@ -91,30 +102,41 @@ export class ApplicationLayoutComponent implements AfterViewInit, OnDestroy {
 
   trackElementByFn: TrackByFunction<ABP.FullRoute> = (_, element) => element;
 
-  constructor(private store: Store, private oauthService: OAuthService) {}
+  constructor(
+    private store: Store,
+    private renderer: Renderer2,
+    private authService: AuthService,
+  ) {}
 
   private checkWindowWidth() {
     setTimeout(() => {
-      this.navbarRootDropdowns.forEach(item => {
-        item.close();
-      });
       if (window.innerWidth < 768) {
         this.isDropdownChildDynamic = false;
+        if (this.smallScreen === false) {
+          this.isCollapsed = false;
+          setTimeout(() => {
+            this.isCollapsed = true;
+          }, 100);
+        }
+        this.smallScreen = true;
       } else {
         this.isDropdownChildDynamic = true;
+        this.smallScreen = false;
       }
     }, 0);
   }
 
   ngAfterViewInit() {
-    const navigations = this.store.selectSnapshot(LayoutState.getNavigationElements).map(({ name }) => name);
+    const navigations = this.store
+      .selectSnapshot(LayoutState.getNavigationElements)
+      .map(({ name }) => name);
 
     if (navigations.indexOf('LanguageRef') < 0) {
       this.store.dispatch(
         new AddNavigationElement([
           { element: this.languageRef, order: 4, name: 'LanguageRef' },
-          { element: this.currentUserRef, order: 5, name: 'CurrentUserRef' }
-        ])
+          { element: this.currentUserRef, order: 5, name: 'CurrentUserRef' },
+        ]),
       );
     }
 
@@ -122,7 +144,7 @@ export class ApplicationLayoutComponent implements AfterViewInit, OnDestroy {
       .pipe(
         map(elements => elements.map(({ element }) => element)),
         filter(elements => !compare(elements, this.rightPartElements)),
-        takeUntilDestroy(this)
+        takeUntilDestroy(this),
       )
       .subscribe(elements => {
         setTimeout(() => (this.rightPartElements = elements), 0);
@@ -131,10 +153,7 @@ export class ApplicationLayoutComponent implements AfterViewInit, OnDestroy {
     this.checkWindowWidth();
 
     fromEvent(window, 'resize')
-      .pipe(
-        takeUntilDestroy(this),
-        debounceTime(250)
-      )
+      .pipe(takeUntilDestroy(this), debounceTime(150))
       .subscribe(() => {
         this.checkWindowWidth();
       });
@@ -147,13 +166,24 @@ export class ApplicationLayoutComponent implements AfterViewInit, OnDestroy {
   }
 
   logout() {
-    this.oauthService.logOut();
-    this.store.dispatch(
-      new Navigate(['/'], null, {
-        state: { redirectUrl: this.store.selectSnapshot(RouterState).state.url }
-      })
-    );
-    this.store.dispatch(new GetAppConfiguration());
+    this.authService.logout().subscribe(() => {
+      this.store.dispatch(
+        new Navigate(['/'], null, {
+          state: { redirectUrl: this.store.selectSnapshot(RouterState).state.url },
+        }),
+      );
+    });
+  }
+
+  openChange(event: boolean, childrenContainer: HTMLDivElement) {
+    if (!event) {
+      Object.keys(childrenContainer.style)
+        .filter(key => Number.isInteger(+key))
+        .forEach(key => {
+          this.renderer.removeStyle(childrenContainer, childrenContainer.style[key]);
+        });
+      this.renderer.removeStyle(childrenContainer, 'left');
+    }
   }
 }
 

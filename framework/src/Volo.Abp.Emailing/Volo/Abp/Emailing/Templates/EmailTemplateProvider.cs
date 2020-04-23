@@ -12,12 +12,12 @@ namespace Volo.Abp.Emailing.Templates
     {
         protected IEmailTemplateDefinitionManager EmailTemplateDefinitionManager;
         protected ITemplateLocalizer TemplateLocalizer { get; }
-        protected EmailTemplateOptions Options { get; }
+        protected AbpEmailTemplateOptions Options { get; }
         protected IStringLocalizerFactory StringLocalizerFactory;
 
         public EmailTemplateProvider(IEmailTemplateDefinitionManager emailTemplateDefinitionManager,
             ITemplateLocalizer templateLocalizer, IStringLocalizerFactory stringLocalizerFactory,
-            IOptions<EmailTemplateOptions> options)
+            IOptions<AbpEmailTemplateOptions> options)
         {
             EmailTemplateDefinitionManager = emailTemplateDefinitionManager;
             TemplateLocalizer = templateLocalizer;
@@ -103,10 +103,10 @@ namespace Volo.Abp.Emailing.Templates
             var localizer = StringLocalizerFactory.Create(emailTemplateDefinition.LocalizationResource);
             if (cultureName != null)
             {
-                emailTemplate.SetContent(
-                    TemplateLocalizer.Localize(localizer.WithCulture(new CultureInfo(cultureName)),
-                        emailTemplate.Content)
-                );
+                using (CultureHelper.Use(new CultureInfo(cultureName)))
+                {
+                    emailTemplate.SetContent(TemplateLocalizer.Localize(localizer, emailTemplate.Content));
+                }
             }
             else
             {

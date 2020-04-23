@@ -2,11 +2,13 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using JetBrains.Annotations;
 
 namespace Volo.Abp.Cli.ProjectModification
 {
     public static class ProjectFinder
     {
+        [CanBeNull]
         public static string FindNuGetTargetProjectFile(string[] projectFiles, NuGetPackageTarget target)
         {
             if (!projectFiles.Any())
@@ -40,7 +42,7 @@ namespace Volo.Abp.Cli.ProjectModification
                 case NuGetPackageTarget.HttpApiClient:
                     return FindProjectEndsWith(projectFiles, assemblyNames, ".HttpApi.Client");
                 default:
-                    throw new ApplicationException($"{nameof(NuGetPackageTarget)}.{target} has not implemented!");
+                    return null;
             }
         }
 
@@ -92,14 +94,7 @@ namespace Volo.Abp.Cli.ProjectModification
 
         public static string[] GetAssemblyNames(string[] projectFiles)
         {
-            return projectFiles.Select(GetAssemblyName).ToArray();
-        }
-
-        public static string GetAssemblyName(string projectFile)
-        {
-            return projectFile
-                .Substring(projectFile.LastIndexOf(Path.DirectorySeparatorChar) + 1)
-                .RemovePostFix(StringComparison.OrdinalIgnoreCase, ".csproj");
+            return projectFiles.Select(ProjectFileNameHelper.GetAssemblyNameFromProjectPath).ToArray();
         }
 
         private static string FindProjectEndsWith(
@@ -128,6 +123,12 @@ namespace Volo.Abp.Cli.ProjectModification
             if (baseFolder == null)
             {
                 return projectFolders.ToArray();
+            }
+
+            var hostFolder = Path.Combine(baseFolder, "host");
+            if (Directory.Exists(hostFolder))
+            {
+                projectFolders.Add(hostFolder);
             }
 
             var srcFolder = Path.Combine(baseFolder, "src");

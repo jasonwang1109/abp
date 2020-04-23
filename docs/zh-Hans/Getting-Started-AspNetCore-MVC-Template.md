@@ -2,9 +2,9 @@
 
 ### 创建新项目
 
-本教程使用 **ABP CLI** 创建一个新项目. 更多选项, 请参阅[入门](https://cn.abp.io/get-started)页面.
+本教程使用 **ABP CLI** 创建一个新项目. 更多选项, 请参阅[入门](https://abp.io/get-started)页面.
 
-如果你之前未安装，请使用命令行安装ABP CLI:
+如果你之前未安装,请使用命令行安装ABP CLI:
 
 ````bash
 dotnet tool install -g Volo.Abp.Cli
@@ -24,8 +24,10 @@ abp new Acme.BookStore
 
 创建项目的要求:
 
-* [Visual Studio 2017 (v15.9.0+)](https://visualstudio.microsoft.com/tr/downloads/)
-* [.NET Core 2.2+](https://www.microsoft.com/net/download/dotnet-core/)
+* [Visual Studio 2019 (v16.4+)](https://visualstudio.microsoft.com/vs/)
+* [.NET Core 3.0+](https://www.microsoft.com/net/download/dotnet-core/)
+* [Node v12+](https://nodejs.org)
+* [Yarn v1.19+](https://classic.yarnpkg.com/)
 
 ### 解决方案结构
 
@@ -49,7 +51,7 @@ abp new Acme.BookStore
 }
 ````
 
-解决方案使用 **Entity Framework Core** 和 **MS SQL Server**. EF Core支持[各种](https://docs.microsoft.com/en-us/ef/core/providers/)数据库提供程序,因此你可以根据实际需要使用其他DBMS. 如果需要,请更改连接字符串.
+解决方案使用 **Entity Framework Core** 和 **MS SQL Server**. EF Core支持[各种](https://docs.microsoft.com/zh-cn/ef/core/providers/)数据库提供程序,因此你可以根据实际需要使用其他DBMS. 如果需要,请更改连接字符串.
 
 ### 创建数据库并应用数据库迁移
 

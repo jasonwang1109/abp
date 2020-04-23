@@ -1,22 +1,62 @@
-import { Inject, Injectable } from '@angular/core';
-import { Observable, ReplaySubject } from 'rxjs';
+import { Injectable } from '@angular/core';
+import { concat, Observable, of, ReplaySubject, throwError } from 'rxjs';
+import { delay, retryWhen, shareReplay, take, tap } from 'rxjs/operators';
+import { LoadingStrategy } from '../strategies';
 import { uuid } from '../utils';
 
 @Injectable({
   providedIn: 'root',
 })
 export class LazyLoadService {
+  readonly loaded = new Set();
+
   loadedLibraries: { [url: string]: ReplaySubject<void> } = {};
 
+  load(strategy: LoadingStrategy, retryTimes?: number, retryDelay?: number): Observable<Event>;
+  /**
+   *
+   * @deprecated Use other overload that requires a strategy as first param
+   */
   load(
     urlOrUrls: string | string[],
     type: 'script' | 'style',
-    content: string = '',
+    content?: string,
+    targetQuery?: string,
+    position?: InsertPosition,
+  ): Observable<void>;
+  load(
+    strategyOrUrl: LoadingStrategy | string | string[],
+    retryTimesOrType?: number | 'script' | 'style',
+    retryDelayOrContent?: number | string,
     targetQuery: string = 'body',
-    position: InsertPosition = 'afterend',
-  ): Observable<void> {
+    position: InsertPosition = 'beforeend',
+  ): Observable<Event | void> {
+    if (strategyOrUrl instanceof LoadingStrategy) {
+      const strategy = strategyOrUrl;
+      const retryTimes = typeof retryTimesOrType === 'number' ? retryTimesOrType : 2;
+      const retryDelay = typeof retryDelayOrContent === 'number' ? retryDelayOrContent : 1000;
+
+      if (this.loaded.has(strategy.path)) return of(new CustomEvent('load'));
+
+      return strategy.createStream().pipe(
+        retryWhen(error$ =>
+          concat(
+            error$.pipe(delay(retryDelay), take(retryTimes)),
+            throwError(new CustomEvent('error')),
+          ),
+        ),
+        tap(() => this.loaded.add(strategy.path)),
+        delay(100),
+        shareReplay({ bufferSize: 1, refCount: true }),
+      );
+    }
+
+    let urlOrUrls = strategyOrUrl;
+    const content = (retryDelayOrContent as string) || '';
+    const type = retryTimesOrType as 'script' | 'style';
+
     if (!urlOrUrls && !content) {
-      return;
+      return throwError('Should pass url or content');
     } else if (!urlOrUrls && content) {
       urlOrUrls = [null];
     }
