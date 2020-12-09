@@ -1,25 +1,28 @@
 ﻿using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.DependencyInjection;
 using Volo.Abp.AspNetCore.Mvc.Localization;
-using Volo.Abp.AspNetCore.Mvc.UI.Bootstrap;
 using Volo.Abp.AspNetCore.Mvc.UI.Theme.Shared;
 using Volo.Abp.AutoMapper;
 using Volo.Abp.Identity.Localization;
 using Volo.Abp.Identity.Web.Navigation;
 using Volo.Abp.Modularity;
+using Volo.Abp.ObjectExtending;
+using Volo.Abp.ObjectExtending.Modularity;
 using Volo.Abp.PermissionManagement.Web;
 using Volo.Abp.UI.Navigation;
 using Volo.Abp.VirtualFileSystem;
+using Volo.Abp.Threading;
 
 namespace Volo.Abp.Identity.Web
 {
     [DependsOn(typeof(AbpIdentityHttpApiModule))]
-    [DependsOn(typeof(AbpAspNetCoreMvcUiBootstrapModule))]
     [DependsOn(typeof(AbpAutoMapperModule))]
     [DependsOn(typeof(AbpPermissionManagementWebModule))]
     [DependsOn(typeof(AbpAspNetCoreMvcUiThemeSharedModule))]
     public class AbpIdentityWebModule : AbpModule
     {
+        private static readonly OneTimeRunner OneTimeRunner = new OneTimeRunner();
+
         public override void PreConfigureServices(ServiceConfigurationContext context)
         {
             context.Services.PreConfigure<AbpMvcDataAnnotationsLocalizationOptions>(options =>
@@ -42,7 +45,7 @@ namespace Volo.Abp.Identity.Web
 
             Configure<AbpVirtualFileSystemOptions>(options =>
             {
-                options.FileSets.AddEmbedded<AbpIdentityWebModule>("Volo.Abp.Identity.Web");
+                options.FileSets.AddEmbedded<AbpIdentityWebModule>();
             });
 
             context.Services.AddAutoMapperObjectMapper<AbpIdentityWebModule>();
@@ -60,6 +63,28 @@ namespace Volo.Abp.Identity.Web
                 options.Conventions.AuthorizePage("/Identity/Roles/Index", IdentityPermissions.Roles.Default);
                 options.Conventions.AuthorizePage("/Identity/Roles/CreateModal", IdentityPermissions.Roles.Create);
                 options.Conventions.AuthorizePage("/Identity/Roles/EditModal", IdentityPermissions.Roles.Update);
+            });
+        }
+
+        public override void PostConfigureServices(ServiceConfigurationContext context)
+        {
+            OneTimeRunner.Run(() =>
+            {
+                ModuleExtensionConfigurationHelper
+                    .ApplyEntityConfigurationToUi(
+                        IdentityModuleExtensionConsts.ModuleName,
+                        IdentityModuleExtensionConsts.EntityNames.Role,
+                        createFormTypes: new[] { typeof(Volo.Abp.Identity.Web.Pages.Identity.Roles.CreateModalModel.RoleInfoModel) },
+                        editFormTypes: new[] { typeof(Volo.Abp.Identity.Web.Pages.Identity.Roles.EditModalModel.RoleInfoModel) }
+                    );
+                
+                ModuleExtensionConfigurationHelper
+                    .ApplyEntityConfigurationToUi(
+                        IdentityModuleExtensionConsts.ModuleName,
+                        IdentityModuleExtensionConsts.EntityNames.User,
+                        createFormTypes: new[] { typeof(Volo.Abp.Identity.Web.Pages.Identity.Users.CreateModalModel.UserInfoViewModel) },
+                        editFormTypes: new[] { typeof(Volo.Abp.Identity.Web.Pages.Identity.Users.EditModalModel.UserInfoViewModel) }
+                    );
             });
         }
     }
